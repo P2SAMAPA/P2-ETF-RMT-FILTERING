@@ -17,9 +17,7 @@ UNIVERSES = {
     ]
 }
 
-# Rolling window for correlation (days)
-ROLLING_WINDOW = 252
+# Rolling windows to evaluate (days)
+WINDOWS = [252, 504, 1008]
 
-# RMT threshold: keep eigenvalues above lambda_plus (Marchenko‑Pastur upper bound)
-# Also we can keep only the largest few if they exceed lambda_plus.
 TOP_N = 3
