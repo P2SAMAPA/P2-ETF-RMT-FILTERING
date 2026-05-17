@@ -19,13 +19,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-header">📊 Random Matrix Theory (RMT) Filtering Engine</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Separates signal from noise in correlation matrices | Eigenvector centrality from filtered matrix | Best window per ETF (252/504/1008 days)</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Separates signal from noise in correlation matrices | Eigenvector centrality from filtered matrix | Best window per ETF</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("## 📊 RMT Filtering")
 st.sidebar.markdown(f"**Run Date:** `{st.session_state.get('run_date', 'Not loaded')}`")
 st.sidebar.markdown(f"**Next Trading Day:** `{next_trading_day()}`")
 st.sidebar.markdown("**Method:** Marchenko‑Pastur eigenvalue threshold")
-st.sidebar.markdown("**Windows evaluated:** 252, 504, 1008 days (best per ETF)")
+st.sidebar.markdown("**Windows evaluated:** 63, 252, 504, 1008, 2016 days (best per ETF)")
 
 OUTPUT_REPO = config.OUTPUT_REPO
 HF_TOKEN = config.HF_TOKEN
@@ -83,26 +83,33 @@ for universe_name, uni_data in universes.items():
             <div class="etf-card">
                 <div class="etf-ticker">{etf['ticker']}</div>
                 <div class="etf-score">centrality = {etf['centrality']:.4f}</div>
-                <div class="etf-score">best window = {etf['best_window']}d</div>
+                <div class="etf-score">best window = {etf.get('best_window', 'N/A')}d</div>
             </div>
             """, unsafe_allow_html=True)
-    # Show number of signal eigenvalues per window (summary)
+    # Show number of signal eigenvalues per window
     win_res = uni_data.get("window_results", {})
     if win_res:
         st.info("📈 Number of signal eigenvalues per window (above Marchenko‑Pastur bound):")
         win_df = pd.DataFrame([
-            {"Window (days)": int(win), "Signal Eigenvalues": res["n_signal"]}
+            {"Window (days)": int(win), "Signal Eigenvalues": res.get("n_signal", 0)}
             for win, res in win_res.items()
         ])
         st.dataframe(win_df, use_container_width=True, hide_index=True)
     with st.expander("📋 Full ranking (all ETFs, best window per ETF)"):
         full = uni_data.get("full_scores", {})
         if full:
-            df = pd.DataFrame([
-                {"ETF": ticker, "Best Centrality": info["best_centrality"], "Best Window (days)": info["best_window"]}
-                for ticker, info in full.items()
-            ]).sort_values("Best Centrality", ascending=False)
+            # full_scores is dict: ticker -> {"score": val, "best_window": win}
+            rows = []
+            for ticker, info in full.items():
+                if isinstance(info, dict):
+                    score = info.get("score", 0)
+                    win = info.get("best_window", "N/A")
+                else:
+                    score = info
+                    win = "N/A"
+                rows.append({"ETF": ticker, "Best Centrality": score, "Best Window": win})
+            df = pd.DataFrame(rows).sort_values("Best Centrality", ascending=False)
             st.dataframe(df, use_container_width=True, hide_index=True)
     st.divider()
 
-st.caption("Eigenvalues exceeding the Marchenko‑Pastur upper bound are considered signal. The filtered correlation matrix is reconstructed from those eigenvalues only. Centrality is the absolute value of the first eigenvector of the filtered matrix. For each ETF, we choose the rolling window (252, 504, or 1008 days) that gives the highest centrality.")
+st.caption("Eigenvalues exceeding the Marchenko‑Pastur upper bound are considered signal. The filtered correlation matrix is reconstructed from those eigenvalues only. Centrality is the absolute value of the first eigenvector of the filtered matrix. For each ETF, we choose the rolling window that gives the highest centrality.")
